@@ -18,6 +18,7 @@
             .connectors::after { border-radius: 0 0 3.5px 3.5px; width: 7px; height: 20px; top: 0; left: 38px }
             .connectors::before, .connectors::after { content: ''; position: absolute; background: #f4f7f8 }
             .embed h1, .embed h2, .embed h3, .embed h4, .embed h5, .embed h6 { font-size: 1.5rem; line-height: 1.4 }
+            .embed h1, .embed h2, .embed h3, .embed h4, .embed h5, .embed h6, .embed p { margin-top: 0 !important; margin-bottom: 0 !important }
             .embed img { display: none }
             nav .uk-h3 { font-size: 42px }
 
@@ -63,7 +64,7 @@
                 <img src="img/logo.png" class="uk-navbar-item uk-logo">
             </div>
             <div class="uk-navbar-right uk-navbar-item">
-              <h1 class="uk-h3 uk-margin-remove-bottom" style="color: #045">Welcome to <span class="uk-text-bold">Plymouth Samaritans</span></h1>
+              <h1 class="uk-h3 uk-margin-remove-bottom" style="color: #045">Welcome to <span class="uk-text-bold"><!--#echo var="ENV_SITE_NAME" --></span></h1>
               <img src="img/arrows.png">
             </div>
         </nav>
@@ -130,26 +131,32 @@
                 </div>
             </div>
             <div class="uk-width-1-6 uk-width-1-5@2xl" style="height: calc(100vh - 100px); overflow: hidden">
-                <iframe class="uk-width-1-1" id="status" scrolling="no" src="/intranet/status/" style="height: calc(100vh - 100px)"></iframe>
+                <iframe class="uk-width-1-1" id="status" scrolling="no" src="/embed/status/" style="height: calc(100vh - 100px)"></iframe>
             </div>
         </div>
         <script>
             $('#status').on("load", function() {
+              $(this).contents().find( "body.embed" ).css( "border", "0" );
+              $(this).contents().find( "body.embed" ).css( "padding", "0" );
+              $(this).contents().find( "head" ).append('<style>body:before, body:after { width: 0 !important }</style>');
+              $(this).contents().find( "main" ).css( "padding", "0" );
+
               $(this).contents().find( "span.waiting__label" ).html( "wait" );
               $(this).contents().find( "span.queue__label" ).html( "waiting" );
+              $(this).contents().find( "p:not([id]) span.waiting__label" ).hide();
+              $(this).contents().find( ".bubble__tag" ).hide();
 
               if (window.matchMedia("(min-width: 3800px)").matches) {
-                $(this).contents().find( ".page-header__info" ).css( "font-size", "32px" );
-                $(this).contents().find( ".page-header__info h2" ).hide();
-                $(this).contents().find( ".bubble-copy__item p" ).css( "font-size", "32px" );
-                $(this).contents().find( "ul.status-bubbles" ).css( "margin-top", "60%" );
+                $(this).contents().find( ".page-header__info" ).hide();
+                $(this).contents().find( ".bubble-copy__item p" ).css( "font-size", "30px" );
+                $(this).contents().find( "ul.status-bubbles" ).css( "margin-top", "70%" );
               } else {
                 $(this).contents().find( ".page-header" ).hide();
-                $(this).contents().find( "ul.status-bubbles" ).css( "margin-top", "20px" );
+                $(this).contents().find( "ul.status-bubbles" ).css( "margin-top", "24px" );
               }
             });
 
-            const refreshIntervalInMinutes = 15;
+            const refreshIntervalInMinutes = 2;
             const app = Vue.createApp({
               data() {
                 return {
@@ -171,7 +178,7 @@
                   this.fetchEvents();
                   this.fetchMessages();
                   this.fetchShifts();
-                  document.getElementById('status').src = '/intranet/status/';
+                  document.getElementById('status').src = '/embed/status/';
                 },
                 async fetchEvents() {
                   try {
