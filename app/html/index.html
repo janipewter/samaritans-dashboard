@@ -44,9 +44,12 @@
               padding: 0 1.5rem; background: #009bc8;
               font-size: 1.5rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;
             }
-            /* clips the track, so items vanish behind the label rather than sliding over it */
+            /* clips the track, so items vanish behind the label rather than sliding over it.
+               the left margin matches the label's own padding, so items disappear a little
+               clear of it rather than running right up against the text */
             .ticker__viewport {
               flex: 1; align-self: stretch; position: relative; overflow: hidden;
+              margin-left: 1.5rem;
             }
             /* the two copies are always equal width, so -50% lands exactly on the second one */
             .ticker__track {
