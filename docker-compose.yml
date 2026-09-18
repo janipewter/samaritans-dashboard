@@ -3,6 +3,12 @@ services:
 
   app:
     build: ./app
+    networks:
+      default:
+        aliases:
+          # Chromium rewrites a dotless hostname like 'app' to https://, so give the
+          # container a name with a dot in it and it is left alone
+          - app.local
     ports:
       - '80'
     restart: always
@@ -11,7 +17,7 @@ services:
     depends_on:
       - app
     environment:
-      LAUNCH_URL: http://app/
+      LAUNCH_URL: http://app.local/
       KIOSK: 1
       ENABLE_GPU: 0
     image: bh.cr/balenalabs/browser-aarch64

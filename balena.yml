@@ -1,6 +1,6 @@
 name: samaritans-dashboard
 type: sw.application
-version: 2.0.2
+version: 2.1.0
 description: >-
   A status dashboard for Samaritans branches utilising Three Rings. It allows
   authorised users to post messages for others (via the 3R wiki), shows today's
@@ -14,6 +14,8 @@ data:
   applicationEnvironmentVariables:
     - SITE_NAME: Sevenoaks
     - THREERINGS_APIKEY:
+    - REFRESH_INTERVAL_MINUTES: 15
+    - TICKER_PAGE_NAME: Ticker
   applicationConfigVariables:
     - BALENA_HOST_CONFIG_disable_overscan: 1
   defaultDeviceType: raspberrypi4-64

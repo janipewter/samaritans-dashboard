@@ -45,7 +45,7 @@ In our branch, we used:
 
 ### Three Rings
 
-* Create a new Wiki in 3R called 'Branch Comms Screens' any pages you create in here will become on-screen messages. You may want to use 3R permissions to restrict the ability to change these and/or use the lock functionality.
+* Create a new Wiki in 3R called 'Branch Comms Screens' any pages you create in here will become on-screen messages. One page is treated differently: a page named 'Ticker' (or whatever *TICKER_PAGE_NAME* is set to) is not shown as a message tile - instead each of its bullet points scrolls along the news ticker at the bottom of the screen. You may want to use 3R permissions to restrict the ability to change these and/or use the lock functionality.
 * Create a new role in 3R called something similar to 'Branch Comms Screens'.
 * Grant this role View on Events, under Directory Access grant View for all core roles, tick Directory Self-manage, View for Wiki and View for Stats and enable it as a Core role.
 * Create a volunteer called 'Branch Comms Screens' with only this role, log in as this new account and add an API key for them via their Directory page.
@@ -64,6 +64,8 @@ In our branch, we used:
 * Click the **Advanced** toggle switch.
 * Update your *SITE_NAME* - eg. Sevenoaks. This is used for the 'Welcome to' dashboard header and needs to be relatively short.
 * Insert the *THREERINGS_APIKEY* you obtained above in the related value box.
+* Optionally change *REFRESH_INTERVAL_MINUTES* - how often the dashboard reloads its data. Defaults to 15.
+* Optionally change *TICKER_PAGE_NAME* - the wiki page whose bullets scroll along the bottom of the screen. Defaults to 'Ticker'.
 * Click **Create and deploy**.
 
 Now let's set up each device:

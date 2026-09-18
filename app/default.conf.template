@@ -6,6 +6,8 @@ server {
 	location / {
 		ssi on;
 		set $ENV_SITE_NAME "$SITE_NAME";
+		set $ENV_REFRESH_INTERVAL_MINUTES "$REFRESH_INTERVAL_MINUTES";
+		set $ENV_TICKER_PAGE_NAME "$TICKER_PAGE_NAME";
 		try_files $uri $uri/ =404;
 	}
 	location = /events.json {

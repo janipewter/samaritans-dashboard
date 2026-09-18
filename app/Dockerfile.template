@@ -12,6 +12,11 @@ COPY docker-entrypoint.sh /
 COPY 20-envsubst-on-templates.sh /docker-entrypoint.d
 COPY default.conf.template /etc/nginx/templates
 COPY html /var/www/html
+
+# the entrypoint ignores anything in docker-entrypoint.d without the exec bit,
+# which a checkout on Windows will not have preserved
+RUN chmod +x /docker-entrypoint.sh /docker-entrypoint.d/*.sh
+
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
 EXPOSE 80

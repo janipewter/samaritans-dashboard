@@ -27,6 +27,50 @@
             }
             :root {
               --uk-breakpoint-2xl: 3800px;
+              --nav-height: 100px;
+              --ticker-height: 70px;
+            }
+            /* no ticker page in the wiki - reclaim the space for the tiles */
+            body.no-ticker { --ticker-height: 0px }
+
+            .ticker {
+              position: fixed; bottom: 0; left: 0; right: 0;
+              height: var(--ticker-height);
+              display: flex; align-items: center; overflow: hidden;
+              background: #045; color: #fff;
+            }
+            .ticker__label {
+              flex: none; align-self: stretch; display: flex; align-items: center;
+              padding: 0 1.5rem; background: #009bc8;
+              font-size: 1.5rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;
+            }
+            /* clips the track, so items vanish behind the label rather than sliding over it */
+            .ticker__viewport {
+              flex: 1; align-self: stretch; position: relative; overflow: hidden;
+            }
+            /* the two copies are always equal width, so -50% lands exactly on the second one */
+            .ticker__track {
+              position: absolute; top: 0; left: 0; height: 100%;
+              display: flex; align-items: center; width: max-content;
+              animation: ticker-scroll 60s linear infinite;
+              will-change: transform;
+            }
+            /* sized to its content, so the items loop as one continuous stream */
+            .ticker__copy {
+              flex: none; display: flex; align-items: center;
+            }
+            .ticker__item {
+              flex: none; display: flex; align-items: center;
+              padding-right: 4rem; font-size: 1.5rem; white-space: nowrap;
+            }
+            /* a flex child rather than inline text, so it centres on the text instead of the baseline */
+            .ticker__item::before {
+              content: ''; flex: none; width: 0.5rem; height: 0.5rem; margin-right: 4rem;
+              border-radius: 50%; background: #009bc8;
+            }
+            @keyframes ticker-scroll {
+              from { transform: translateX(0) }
+              to { transform: translateX(-50%) }
             }
             @media (min-width: 3800px) {
               .uk-width-1-5\@2xl {
@@ -58,8 +102,8 @@
             }
         </style>
     </head>
-    <body>
-        <nav class="uk-navbar-container uk-navbar-transparent" style="height: 100px" uk-navbar>
+    <body class="no-ticker">
+        <nav class="uk-navbar-container uk-navbar-transparent" style="height: var(--nav-height)" uk-navbar>
             <div class="uk-navbar-left">
                 <img src="img/logo.png" class="uk-navbar-item uk-logo">
             </div>
@@ -70,7 +114,7 @@
         </nav>
         <div style="background: #f4f7f8" uk-grid>
             <div class="uk-width-5-6 uk-width-4-5@2xl" id="app" uk-grid>
-                <div class="uk-width-2-3 uk-width-3-4@2xl" style="height: calc(100vh - 100px)">
+                <div class="uk-width-2-3 uk-width-3-4@2xl" style="height: calc(100vh - var(--nav-height) - var(--ticker-height))">
                     <div v-if="eventsError || messagesError || shiftsError" class="uk-alert-danger" uk-alert>
                         <div v-if="eventsError" class="uk-grid-small" uk-grid>
                             <div><span uk-icon="icon: warning"></span></div>
@@ -95,7 +139,7 @@
                                 </div>
                             </div>
                         </template>
-                        <template v-for="message in messages" :key="message.id">
+                        <template v-for="message in messageTiles" :key="message.id">
                             <div>
                                 <div class="uk-card uk-card-body uk-light" style="background: #045">
                                     <span class="connectors"></span>
@@ -105,7 +149,7 @@
                         </template>
                     </div>
                 </div>
-                <div class="uk-width-1-3 uk-width-1-4@2xl" style="height: calc(100vh - 100px)">
+                <div class="uk-width-1-3 uk-width-1-4@2xl" style="height: calc(100vh - var(--nav-height) - var(--ticker-height))">
                     <div class="uk-child-width-1-1" style="padding-top: 20px" uk-grid="masonry: true">
                         <div v-if="!shiftsLoading">
                             <div class="uk-card uk-card-body uk-light" style="background: #72619f">
@@ -129,9 +173,22 @@
                         </div>
                     </div>
                 </div>
+                <div v-if="tickerItems.length" class="ticker">
+                    <div class="ticker__label">Latest News</div>
+                    <div class="ticker__viewport">
+                        <div class="ticker__track" :style="{ animationDuration: tickerDuration }">
+                            <!-- the items are repeated so the track can loop seamlessly -->
+                            <template v-for="copy in 2">
+                                <span class="ticker__copy">
+                                    <span v-for="(item, index) in tickerLoop" :key="copy + '-' + index" class="ticker__item">{{ item }}</span>
+                                </span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="uk-width-1-6 uk-width-1-5@2xl" style="height: calc(100vh - 100px); overflow: hidden">
-                <iframe class="uk-width-1-1" id="status" scrolling="no" src="/embed/status/" style="height: calc(100vh - 100px)"></iframe>
+            <div class="uk-width-1-6 uk-width-1-5@2xl" style="height: calc(100vh - var(--nav-height) - var(--ticker-height)); overflow: hidden">
+                <iframe class="uk-width-1-1" id="status" scrolling="no" src="/embed/status/" style="height: calc(100vh - var(--nav-height) - var(--ticker-height))"></iframe>
             </div>
         </div>
         <script>
@@ -156,7 +213,13 @@
               }
             });
 
-            const refreshIntervalInMinutes = 2;
+            // set via the REFRESH_INTERVAL_MINUTES environment variable, defaults to 15
+            const refreshIntervalInMinutes = parseFloat('<!--#echo var="ENV_REFRESH_INTERVAL_MINUTES" -->') || 15;
+
+            // the wiki page whose bullets feed the ticker, rather than appearing as a tile
+            // set via the TICKER_PAGE_NAME environment variable, defaults to 'Ticker'
+            const tickerPageName = ('<!--#echo var="ENV_TICKER_PAGE_NAME" -->'.trim() || 'Ticker').toLowerCase();
+
             const app = Vue.createApp({
               data() {
                 return {
@@ -166,12 +229,83 @@
                   messages: {},
                   shiftsLoading: true,
                   shiftsError: null,
-                  shifts: {}
+                  shifts: {},
+                  tickerRepeats: 1
                 }
               },
               created() {
                 this.fetchData();
                 setInterval(this.fetchData, refreshIntervalInMinutes * 1000 * 60);
+              },
+              computed: {
+                // the feed starts life as an empty object, so normalise before filtering
+                messageList() {
+                  return Array.isArray(this.messages) ? this.messages : Object.values(this.messages);
+                },
+                tickerPage() {
+                  return this.messageList.find(message => this.isTickerPage(message));
+                },
+                messageTiles() {
+                  return this.messageList.filter(message => !this.isTickerPage(message));
+                },
+                tickerItems() {
+                  // no ticker page in the wiki - the ticker simply does not appear
+                  if (!this.tickerPage)
+                    return [];
+
+                  const parsed = new DOMParser().parseFromString(this.tickerPage.contents || '', 'text/html');
+                  const body = parsed.body;
+
+                  // the page must be nothing but bullet lists - anything else and we cannot
+                  // tell what belongs in the ticker, so show nothing rather than a half of it
+                  const lists = Array.from(body.children).filter(child => {
+                    return child.tagName === 'UL' || child.tagName === 'OL';
+                  });
+                  const strayText = Array.from(body.childNodes).some(node => {
+                    return node.nodeType === Node.TEXT_NODE && node.textContent.trim().length;
+                  });
+
+                  if (!lists.length || lists.length !== body.children.length || strayText) {
+                    console.warn(
+                      'Ignoring the ' + this.tickerPage.name + ' wiki page: the ticker only ' +
+                      'accepts a page containing nothing but bullet points.'
+                    );
+                    return [];
+                  }
+
+                  // one ticker item per bullet, nested bullets flattened in with the rest.
+                  // the wiki editor leaves non-breaking spaces and line breaks in the
+                  // markup, which render as odd gaps on a single scrolling line
+                  const items = lists
+                    .flatMap(list => Array.from(list.querySelectorAll('li')))
+                    .map(item => item.textContent.replace(/\s+/g, ' ').trim())
+                    .filter(item => item.length);
+
+                  if (!items.length)
+                    console.warn('The ' + this.tickerPage.name + ' wiki page has no bullet points to show.');
+
+                  return items;
+                },
+                // a short list is repeated within each copy, so that one copy always more than
+                // fills the bar and the items read as one continuous stream rather than a
+                // short run followed by a gap. tickerRepeats is measured from the rendered
+                // width once the items are on screen
+                tickerLoop() {
+                  return Array.from({ length: this.tickerRepeats }, () => this.tickerItems).flat();
+                },
+                tickerDuration() {
+                  // keep the scroll speed constant regardless of how much text there is -
+                  // seconds per character, so lower is faster
+                  const characters = this.tickerLoop.join('').length;
+                  return Math.max(20, characters * 0.2) + 's';
+                }
+              },
+              watch: {
+                tickerItems(items) {
+                  document.body.classList.toggle('no-ticker', !items.length);
+                  this.tickerRepeats = 1;
+                  this.$nextTick(this.fitTicker);
+                }
               },
               methods: {
                 fetchData() {
@@ -221,6 +355,22 @@
                     console.log(err);
                     this.shiftsError = "Unable to access shifts data feed.";
                   }
+                },
+                // repeat the list until one copy is wider than the bar, so there is never a
+                // gap on screen between the end of the list and the start of the next pass
+                fitTicker() {
+                  const viewport = document.querySelector('.ticker__viewport');
+                  const copy = document.querySelector('.ticker__copy');
+                  if (!viewport || !copy || !copy.offsetWidth)
+                    return;
+                  if (copy.offsetWidth < viewport.offsetWidth && this.tickerRepeats < 20) {
+                    this.tickerRepeats = this.tickerRepeats + 1;
+                    this.$nextTick(this.fitTicker);
+                  }
+                },
+                isTickerPage(message) {
+                  const name = message.name || message.title || '';
+                  return name.trim().toLowerCase() === tickerPageName;
                 },
                 formatDate(datetime = new Date()) {
                   return moment(datetime).format('dddd[, ]MMMM Do YYYY')
