@@ -157,7 +157,7 @@
                         <div v-if="!shiftsLoading">
                             <div class="uk-card uk-card-body uk-light" style="background: #72619f">
                                 <span class="connectors"></span>
-                                <p class="uk-text-meta uk-margin-remove">{{ formatDate() }}</p>
+                                <p class="uk-text-meta uk-margin-remove">{{ formatDate(now) }}</p>
                                 <h1 class="uk-card-title uk-margin-remove-top">Today's Shifts</h1>
                                 <template v-for="(shift, index) in shifts" :key="shift.id">
                                     <h2 class="uk-h3 uk-margin-remove" v-if="index == 0 || shift.start_datetime != shifts[index -1].start_datetime || shift.duration != shifts[index -1].duration">
@@ -233,12 +233,16 @@
                   shiftsLoading: true,
                   shiftsError: null,
                   shifts: {},
-                  tickerRepeats: 1
+                  tickerRepeats: 1,
+                  // the current time, kept up to date by tick() so anything on screen that
+                  // depends on the time of day (today's date, the shift on now) updates by itself
+                  now: new Date()
                 }
               },
               created() {
                 this.fetchData();
                 setInterval(this.fetchData, refreshIntervalInMinutes * 1000 * 60);
+                setInterval(this.tick, 30 * 1000);
               },
               computed: {
                 // the feed starts life as an empty object, so normalise before filtering
@@ -311,6 +315,14 @@
                 }
               },
               methods: {
+                tick() {
+                  const previous = this.now;
+                  this.now = new Date();
+                  // a new day - today's shifts are a different list, so fetch them straight
+                  // away rather than showing yesterday's until the next refresh
+                  if (!moment(this.now).isSame(previous, 'day'))
+                    this.fetchData();
+                },
                 fetchData() {
                   this.fetchEvents();
                   this.fetchMessages();
