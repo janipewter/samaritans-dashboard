@@ -316,15 +316,20 @@
                   const body = parsed.body;
 
                   // the page must be nothing but bullet lists - anything else and we cannot
-                  // tell what belongs in the ticker, so show nothing rather than a half of it
-                  const lists = Array.from(body.children).filter(child => {
+                  // tell what belongs in the ticker, so show nothing rather than a half of it.
+                  // blank lines typed in the wiki editor are saved as empty paragraphs or
+                  // line breaks (<p>&nbsp;</p>, <br>) - those are not content, so skip them
+                  const content = Array.from(body.children).filter(child => {
+                    return child.textContent.trim().length || child.querySelector('img, iframe, video');
+                  });
+                  const lists = content.filter(child => {
                     return child.tagName === 'UL' || child.tagName === 'OL';
                   });
                   const strayText = Array.from(body.childNodes).some(node => {
                     return node.nodeType === Node.TEXT_NODE && node.textContent.trim().length;
                   });
 
-                  if (!lists.length || lists.length !== body.children.length || strayText) {
+                  if (!lists.length || lists.length !== content.length || strayText) {
                     console.warn(
                       'Ignoring the ' + this.tickerPage.name + ' wiki page: the ticker only ' +
                       'accepts a page containing nothing but bullet points.'
