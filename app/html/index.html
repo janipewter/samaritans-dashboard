@@ -230,6 +230,12 @@
             const retryTimers = {};
             const retryCounts = {};
 
+            // the page reloads itself once a day in the small hours, which clears out anything
+            // a browser left running for months builds up, and picks up a new version of the page
+            const dailyReloadHour = 3;
+            const pageLoadedAt = Date.now();
+            let reloading = false;
+
             const app = Vue.createApp({
               data() {
                 return {
@@ -346,6 +352,30 @@
                   // away rather than showing yesterday's until the next refresh
                   if (!moment(this.now).isSame(previous, 'day'))
                     this.fetchData();
+                  // checked on every tick through the reload hour, rather than set as a timer
+                  // for 3am, so it still happens if the clock jumps - a Pi has no clock of its
+                  // own and sets the time from the network after it boots. the hour since the
+                  // page loaded stops it reloading again straight after a reload
+                  if (this.now.getHours() === dailyReloadHour && Date.now() - pageLoadedAt > 60 * 60 * 1000)
+                    this.reloadIfServerUp();
+                },
+                // only reload when the server is answering. reloading while it is down would
+                // leave the browser on its own error page, which never retries, until someone
+                // restarts the screen. if it is down, the next tick tries again
+                async reloadIfServerUp() {
+                  if (reloading)
+                    return;
+                  reloading = true;
+                  try {
+                    const response = await fetch(location.pathname, { cache: 'no-store' });
+                    if (response.ok) {
+                      location.reload();
+                      return;
+                    }
+                  } catch (err) {
+                    console.log(err);
+                  }
+                  reloading = false;
                 },
                 fetchData() {
                   this.fetchEvents();
