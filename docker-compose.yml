@@ -1,4 +1,4 @@
-version: '2'
+version: '2.1'
 services:
 
   app:
@@ -12,6 +12,17 @@ services:
     ports:
       - '80'
     restart: always
+    # if nginx stops answering, stop it so the container exits and 'restart: always'
+    # brings it back. it stops itself rather than relying on the health status, as
+    # balena does not document restarting a container just for being unhealthy.
+    # only the page itself is checked, never the 3R or SCO feeds, so an outage at
+    # their end does not restart the container over and over. it checks twice, 10
+    # seconds apart, so one slow answer is not enough to restart it
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -T 10 -O /dev/null http://127.0.0.1/ || { sleep 10; wget -q -T 10 -O /dev/null http://127.0.0.1/; } || kill 1"]
+      interval: 1m
+      timeout: 45s
+      retries: 3
 
   browser:
     depends_on:
