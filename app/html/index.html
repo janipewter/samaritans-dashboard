@@ -45,6 +45,12 @@
               letter-spacing: 0.05em; background: #fff; color: #72619f;
             }
 
+            /* a shift still to come, or on now, with nobody on it */
+            .shift__uncovered {
+              display: inline-block; margin-left: 0.25em; padding: 0 0.4em; border-radius: 3px;
+              font-weight: bold; background: #ef7d32; color: #fff;
+            }
+
             /* no ticker page in the wiki - reclaim the space for the tiles */
             body.no-ticker { --ticker-height: 0px }
 
@@ -184,6 +190,9 @@
                                             <template v-if="index > 0">,</template>
                                             {{ volunteer.name }}
                                         </template>
+                                        <!-- only flagged while it can still be covered - an empty shift that has
+                                             already finished is past helping -->
+                                        <span v-if="!(shift.volunteers && shift.volunteers.length) && !hasShiftEnded(shift)" class="shift__uncovered">No volunteers</span>
                                     </div>
                                 </template>
                                 <p v-if="!shifts.length">There are no shifts scheduled for today.</p>
