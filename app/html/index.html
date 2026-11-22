@@ -30,6 +30,9 @@
               --nav-height: 100px;
               --ticker-height: 70px;
             }
+            /* a feed that failed recently but still has data on screen - deliberately quiet */
+            .feed-stale { margin: 0; padding: 10px 15px 0; font-size: 0.9rem; color: #045; opacity: 0.7 }
+
             /* no ticker page in the wiki - reclaim the space for the tiles */
             body.no-ticker { --ticker-height: 0px }
 
@@ -118,20 +121,19 @@
         <div style="background: #f4f7f8" uk-grid>
             <div class="uk-width-5-6 uk-width-4-5@2xl" id="app" uk-grid>
                 <div class="uk-width-2-3 uk-width-3-4@2xl" style="height: calc(100vh - var(--nav-height) - var(--ticker-height))">
-                    <div v-if="eventsError || messagesError || shiftsError" class="uk-alert-danger" uk-alert>
-                        <div v-if="eventsError" class="uk-grid-small" uk-grid>
+                    <div v-if="feedProblems.errors.length" class="uk-alert-danger" uk-alert>
+                        <div v-for="problem in feedProblems.errors" :key="problem.feed" class="uk-grid-small" uk-grid>
                             <div><span uk-icon="icon: warning"></span></div>
-                            <div><p>{{ eventsError }}</p></div>
-                        </div>
-                        <div v-if="messagesError" class="uk-grid-small" uk-grid>
-                            <div><span uk-icon="icon: warning"></span></div>
-                            <div><p>{{ messagesError }}</p></div>
-                        </div>
-                        <div v-if="shiftsError" class="uk-grid-small" uk-grid>
-                            <div><span uk-icon="icon: warning"></span></div>
-                            <div><p>{{ shiftsError }}</p></div>
+                            <div><p>{{ problem.error }}</p></div>
                         </div>
                     </div>
+                    <p v-if="feedProblems.stale.length" class="feed-stale">
+                        <template v-for="(problem, index) in feedProblems.stale" :key="problem.feed">
+                            <template v-if="index > 0"> · </template>
+                            Showing {{ problem.feed }} from {{ formatUpdated(problem.lastUpdated) }}
+                        </template>
+                        - reconnecting
+                    </p>
                     <div class="uk-child-width-1-2 uk-child-width-1-3@2xl" style="padding-left: 15px; padding-top: 20px" uk-grid="masonry: true">
                         <template v-for="(event, index) in events" :key="event.id">
                             <div v-if="index < 12" class="uk-visible@2xl">
@@ -223,6 +225,11 @@
             // set via the TICKER_PAGE_NAME environment variable, defaults to 'Ticker'
             const tickerPageName = ('<!--#echo var="ENV_TICKER_PAGE_NAME" -->'.trim() || 'Ticker').toLowerCase();
 
+            // pending retry for each feed after a failed fetch, and how many times in a row it
+            // has failed. kept outside Vue as nothing on screen depends on them
+            const retryTimers = {};
+            const retryCounts = {};
+
             const app = Vue.createApp({
               data() {
                 return {
@@ -234,6 +241,8 @@
                   shiftsError: null,
                   shifts: {},
                   tickerRepeats: 1,
+                  // when each feed last fetched successfully - null until it first does
+                  lastUpdated: { events: null, messages: null, shifts: null },
                   // the current time, kept up to date by tick() so anything on screen that
                   // depends on the time of day (today's date, the shift on now) updates by itself
                   now: new Date()
@@ -245,6 +254,21 @@
                 setInterval(this.tick, 30 * 1000);
               },
               computed: {
+                // feeds that are failing, split by whether there is still data worth showing.
+                // a feed that has never loaded, or has not loaded for two refresh intervals,
+                // gets the error banner. one that failed only recently keeps its last data
+                // on screen with a quiet note instead, while it retries
+                feedProblems() {
+                  const staleAfter = 2 * refreshIntervalInMinutes * 60 * 1000;
+                  const failing = ['events', 'messages', 'shifts']
+                    .filter(feed => this[feed + 'Error'])
+                    .map(feed => ({ feed, error: this[feed + 'Error'], lastUpdated: this.lastUpdated[feed] }));
+                  const recent = problem => problem.lastUpdated && this.now - problem.lastUpdated < staleAfter;
+                  return {
+                    errors: failing.filter(problem => !recent(problem)),
+                    stale: failing.filter(recent)
+                  };
+                },
                 // the feed starts life as an empty object, so normalise before filtering
                 messageList() {
                   return Array.isArray(this.messages) ? this.messages : Object.values(this.messages);
@@ -329,46 +353,42 @@
                   this.fetchShifts();
                   document.getElementById('status').src = '/embed/status/';
                 },
-                async fetchEvents() {
-                  try {
-                    const response = await fetch('/events.json');
-                    if (!response.ok)
-                      throw new Error(response.statusText);
-                    const json = await response.json();
+                fetchEvents() {
+                  return this.loadFeed('events', '/events.json', json => {
                     // only show events in the next 7 days
-                    // this.events = json['events']
-                    this.events = json['events'].filter(event => moment(event.date).isBefore(moment().add(7, 'd')))
-                    this.eventsError = null;
-                  } catch (err) {
-                    console.log(err);
-                    this.eventsError = "Unable to access events data feed.";
-                  }
+                    this.events = json['events'].filter(event => moment(event.date).isBefore(moment().add(7, 'd')));
+                  });
                 },
-                async fetchMessages() {
-                  try {
-                    const response = await fetch('/wiki/branchcommsscreens/all_pages.json');
-                    if (!response.ok)
-                      throw new Error(response.statusText);
-                    const json = await response.json();
-                    this.messages = json
-                    this.messagesError = null;
-                  } catch (err) {
-                    console.log(err);
-                    this.messagesError = "Unable to access messages data feed.";
-                  }
+                fetchMessages() {
+                  return this.loadFeed('messages', '/wiki/branchcommsscreens/all_pages.json', json => {
+                    this.messages = json;
+                  });
                 },
-                async fetchShifts() {
-                  try {
-                    const response = await fetch('/stats/export_rotas.json');
-                    if (!response.ok)
-                      throw new Error(response.statusText);
-                    const json = await response.json();
-                    this.shifts = json['shifts']
-                    this.shiftsError = null;
+                fetchShifts() {
+                  return this.loadFeed('shifts', '/stats/export_rotas.json', json => {
+                    this.shifts = json['shifts'];
                     this.shiftsLoading = false;
+                  });
+                },
+                // fetch one feed and hand the result to apply(). if it fails, whatever was last
+                // fetched stays on screen and the feed is tried again shortly, backing off from
+                // 30 seconds up to 5 minutes, rather than waiting for the next full refresh
+                async loadFeed(feed, url, apply) {
+                  clearTimeout(retryTimers[feed]);
+                  try {
+                    const response = await fetch(url);
+                    if (!response.ok)
+                      throw new Error(response.status + ' ' + response.statusText);
+                    apply(await response.json());
+                    this[feed + 'Error'] = null;
+                    this.lastUpdated[feed] = new Date();
+                    retryCounts[feed] = 0;
                   } catch (err) {
                     console.log(err);
-                    this.shiftsError = "Unable to access shifts data feed.";
+                    this[feed + 'Error'] = 'Unable to access ' + feed + ' data feed.';
+                    const delay = Math.min(30 * Math.pow(2, retryCounts[feed] || 0), 5 * 60);
+                    retryCounts[feed] = (retryCounts[feed] || 0) + 1;
+                    retryTimers[feed] = setTimeout(() => this.loadFeed(feed, url, apply), delay * 1000);
                   }
                 },
                 // repeat the list until one copy is wider than the bar, so there is never a
@@ -389,6 +409,10 @@
                 },
                 formatDate(datetime = new Date()) {
                   return moment(datetime).format('dddd[, ]Do MMMM YYYY')
+                },
+                // just the time if it was today, otherwise the day too
+                formatUpdated(datetime) {
+                  return moment(datetime).format(moment(datetime).isSame(this.now, 'day') ? 'HH:mm' : 'ddd HH:mm');
                 },
                 formatTime(datetime) {
                   return moment(datetime).utc().format('HH:mm')
