@@ -33,6 +33,18 @@
             /* a feed that failed recently but still has data on screen - deliberately quiet */
             .feed-stale { margin: 0; padding: 10px 15px 0; font-size: 0.9rem; color: #045; opacity: 0.7 }
 
+            /* the shift on now - a lighter band behind its time and rows, running out to the
+               card's edges so it reads as one block */
+            .shift--current { margin: 0 -40px; padding: 0 40px; background: rgba(255, 255, 255, 0.18) }
+            /* the time heading also has uk-margin-remove, which zeroes its margins with !important */
+            h2.shift--current { padding-top: 6px; margin-left: -40px !important; margin-right: -40px !important }
+            div.shift--current { padding-bottom: 6px }
+            .shift__now {
+              display: inline-block; margin-left: 0.4em; padding: 0 0.4em; border-radius: 3px;
+              vertical-align: middle; font-size: 0.55em; font-weight: bold; text-transform: uppercase;
+              letter-spacing: 0.05em; background: #fff; color: #72619f;
+            }
+
             /* no ticker page in the wiki - reclaim the space for the tiles */
             body.no-ticker { --ticker-height: 0px }
 
@@ -162,10 +174,11 @@
                                 <p class="uk-text-meta uk-margin-remove">{{ formatDate(now) }}</p>
                                 <h1 class="uk-card-title uk-margin-remove-top">Today's Shifts</h1>
                                 <template v-for="(shift, index) in shifts" :key="shift.id">
-                                    <h2 class="uk-h3 uk-margin-remove" v-if="index == 0 || shift.start_datetime != shifts[index -1].start_datetime || shift.duration != shifts[index -1].duration">
+                                    <h2 class="uk-h3 uk-margin-remove" :class="{ 'shift--current': isCurrentShift(shift) }" v-if="index == 0 || shift.start_datetime != shifts[index -1].start_datetime || shift.duration != shifts[index -1].duration">
                                         {{ formatTime(shift.start_datetime) }} to {{ formatTime(endTime(shift.start_datetime, shift.duration)) }}
+                                        <span v-if="isCurrentShift(shift)" class="shift__now">Now</span>
                                     </h2>
-                                    <div>
+                                    <div :class="{ 'shift--current': isCurrentShift(shift) }">
                                         <em>({{ shift.rota }})</em>
                                         <template v-for="(volunteer, index) in shift.volunteers" :key="volunteer.id">
                                             <template v-if="index > 0">,</template>
@@ -449,6 +462,15 @@
                 },
                 endTime(start_datetime, duration) {
                   return moment(start_datetime).add(duration, 's')
+                },
+                hasShiftStarted(shift) {
+                  return !moment(this.now).isBefore(shift.start_datetime);
+                },
+                hasShiftEnded(shift) {
+                  return !moment(this.now).isBefore(this.endTime(shift.start_datetime, shift.duration));
+                },
+                isCurrentShift(shift) {
+                  return this.hasShiftStarted(shift) && !this.hasShiftEnded(shift);
                 }
               }
             })
