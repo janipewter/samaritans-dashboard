@@ -6,8 +6,9 @@ services:
     networks:
       default:
         aliases:
-          # Chromium rewrites a dotless hostname like 'app' to https://, so give the
-          # container a name with a dot in it and it is left alone
+          # 'app' is a top-level domain on Chromium's HSTS preload list, so Chromium
+          # loads http://app/ as https://app/, which nginx does not serve. a .local
+          # name is not on the list, so the browser reaches the container over http
           - app.local
     ports:
       - '80'
